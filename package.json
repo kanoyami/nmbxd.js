@@ -1,0 +1,24 @@
+{
+  "name": "nmbxd",
+  "version": "1.0.0",
+  "description": "An API set for NMBXD",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kanoyami/nmbxd.js.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kanoyami/nmbxd.js/issues"
+  },
+  "homepage": "https://github.com/kanoyami/nmbxd.js#readme",
+  "devDependencies": {
+    "eslint": "^8.34.0",
+    "prettier": "^2.8.4",
+    "typescript": "^4.9.5"
+  }
+}
