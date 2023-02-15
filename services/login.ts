@@ -1,7 +1,7 @@
 /*
  * @Author: 令和唯一
  * @Date: 2023-02-15 10:14:50
- * @LastEditTime: 2023-02-15 14:59:00
+ * @LastEditTime: 2023-02-15 16:34:52
  * @LastEditors: 令和唯一
  * @Description:
  * @FilePath: /nmbxd.js/services/login.ts
@@ -11,7 +11,11 @@ import { getUserAgent } from "../util/userAgent";
 import * as fs from "fs/promises";
 import path from "path";
 import got from "got";
-export const getBarCode = async (ua: string, cookie: string[] | undefined) => {
+import * as cheerio from "cheerio";
+export const getVerifyCode = async (
+  ua: string,
+  cookie: string[] | undefined
+) => {
   const res = await got.get(
     `https://www.nmbxd1.com/Member/User/Index/verify.html?code=${Math.random()}`,
     {
@@ -19,7 +23,7 @@ export const getBarCode = async (ua: string, cookie: string[] | undefined) => {
     }
   );
   await fs.writeFile(
-    path.join(__dirname, "..", "public", "barcode.jpg"),
+    path.join(__dirname, "..", "public", "VerifyCode.jpg"),
     res.rawBody
   );
   return true;
@@ -51,38 +55,68 @@ export class Login {
   cookie: string[] | undefined;
   username: string = "";
   password: string = "";
-  barcode: string = "";
+  VerifyCode: string = "";
+  cookieHash: any = {};
   ua = getUserAgent();
   getCookie = async () => {
     this.cookie = await getLoginCookie(this.ua);
     return this;
   };
-  getBarCode = async () => {
-    await getBarCode(this.ua, this.cookie);
+  getVerifyCode = async () => {
+    await getVerifyCode(this.ua, this.cookie);
     return this;
   };
-  setLoginInfo = (username: any, password: any, barcode: any) => {
+  setLoginInfo = (username: any, password: any, VerifyCode: any) => {
     (this.username = username), (this.password = password);
-    this.barcode = barcode;
+    this.VerifyCode = VerifyCode;
     return this;
   };
   login = async () => {
     const loginInfo = await doLogin(
       this.username,
       this.password,
-      this.barcode,
+      this.VerifyCode,
       this.ua,
       this.cookie
     );
-    return {
-      success: loginInfo.body.includes("登陆成功"),
-      cookie: loginInfo.headers["set-cookie"],
-    };
+    const success = loginInfo.body.includes("登陆成功");
+    console.log(success);
+    if (success)
+      this.cookie![0] =
+        this.cookie![0] + ";" + loginInfo.headers["set-cookie"]![0];
+    return success;
   };
   cookieList = async () => {
     const cookieListOrigin = await got.get(
       "https://www.nmbxd1.com/Member/User/Cookie/index.html",
-      {}
+      {
+        headers: { "User-Agent": this.ua, Cookie: this.cookie },
+      }
     );
+    const $ = cheerio.load(cookieListOrigin.body);
+    const trList = $("tr").toArray();
+    for (let i = 1; i < trList.length; i += 1) {
+      const tdArr = $(trList[i]).find("td").toArray();
+      this.cookieHash[$(tdArr[2]).text()] = await this.switchCookie(
+        $(tdArr[1]).text()
+      );
+    }
+  };
+
+  switchCookie = async (cookieId: string) => {
+    console.log(cookieId);
+    const switchOrigin = await got.get(
+      `https://www.nmbxd1.com/Member/User/Cookie/switchTo/id/${cookieId}.html`,
+      { headers: { "User-Agent": this.ua, Cookie: this.cookie } }
+    );
+    const success = switchOrigin.body.includes("成功");
+    if (success) {
+      const setCookieArr: string[] =
+        switchOrigin.headers["set-cookie"]![0].split(";");
+      for (const setCookie of setCookieArr) {
+        console.log(setCookie);
+        if (setCookie.includes("userhash")) return setCookie.split("=")[1];
+      }
+    } else return false;
   };
 }
